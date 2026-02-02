@@ -51,6 +51,7 @@ const EventPage = () => {
   const [eventCreatorObj, setEventCreatorObj] = useState(null)
   const [eventCollaboratorsObjs, setEventCollaboratorsObjs] = useState([])
   const [runDown, setRunDown] = useState([])
+  const [focusedRundownDescriptionIndex, setFocusedRundownDescriptionIndex] = useState(null)
   const [budget, setBudget] = useState([])
   const [focusedBudgetPriceIndex, setFocusedBudgetPriceIndex] = useState(null)
   const [draggedBudgetIndex, setDraggedBudgetIndex] = useState(null)
@@ -78,6 +79,16 @@ const EventPage = () => {
       localStorage.setItem(SECTION_STORAGE_KEY, JSON.stringify(sectionOpen))
     } catch (_) {}
   }, [sectionOpen])
+
+  useEffect(() => {
+    if (!sectionOpen.rundown) setFocusedRundownDescriptionIndex(null)
+  }, [sectionOpen.rundown])
+
+  useEffect(() => {
+    if (focusedRundownDescriptionIndex != null && focusedRundownDescriptionIndex >= runDown.length) {
+      setFocusedRundownDescriptionIndex(null)
+    }
+  }, [runDown.length, focusedRundownDescriptionIndex])
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -173,7 +184,13 @@ const EventPage = () => {
     setRunDown(next)
   }
   const addRunDownRow = () => setRunDown([...runDown, { timeStart: '', timeEnd: '', durationMinutes: 0, name: '', description: '' }])
-  const removeRunDownRow = (index) => setRunDown(runDown.filter((_, i) => i !== index))
+  const removeRunDownRow = (index) => {
+    setRunDown(runDown.filter((_, i) => i !== index))
+    if (focusedRundownDescriptionIndex === index) setFocusedRundownDescriptionIndex(null)
+    else if (focusedRundownDescriptionIndex != null && focusedRundownDescriptionIndex > index) {
+      setFocusedRundownDescriptionIndex(focusedRundownDescriptionIndex - 1)
+    }
+  }
 
   const handleBudgetChange = (index, field, value) => {
     const next = [...budget]
@@ -761,16 +778,38 @@ const EventPage = () => {
                       />
                     </td>
                     <td className="px-2 py-2 min-w-[200px]">
-                      <div className="rounded border border-gray-300 overflow-hidden [&_.ql-editor]:min-h-[72px] [&_.ql-toolbar]:rounded-t [&_.ql-container]:rounded-b [&_.ql-container]:border-0">
-                        <ReactQuill
-                          theme="snow"
-                          value={row.description ?? ''}
-                          onChange={(value) => handleRunDownChange(index, 'description', value)}
-                          modules={rundownDescriptionModules}
-                          placeholder="Description (bold, numbering)"
-                          className="rundown-quill text-sm"
-                        />
-                      </div>
+                      {focusedRundownDescriptionIndex === index ? (
+                        <div
+                          className="rounded border border-gray-300 overflow-hidden [&_.ql-editor]:min-h-[72px] [&_.ql-toolbar]:rounded-t [&_.ql-container]:rounded-b [&_.ql-container]:border-0"
+                          onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) setFocusedRundownDescriptionIndex(null)
+                          }}
+                        >
+                          <ReactQuill
+                            theme="snow"
+                            value={row.description ?? ''}
+                            onChange={(value) => handleRunDownChange(index, 'description', value)}
+                            onBlur={() => setFocusedRundownDescriptionIndex(null)}
+                            modules={rundownDescriptionModules}
+                            placeholder="Description (bold, numbering)"
+                            className="rundown-quill text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setFocusedRundownDescriptionIndex(index)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFocusedRundownDescriptionIndex(index); } }}
+                          className="rounded border border-gray-300 min-h-[72px] px-3 py-2 text-sm text-left cursor-text bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent [&_ul]:list-disc [&_ol]:list-decimal [&_ul,_ol]:pl-4 [&_p]:mb-1 [&_p:last-child]:mb-0"
+                        >
+                          {row.description?.trim() ? (
+                            <div dangerouslySetInnerHTML={{ __html: row.description }} />
+                          ) : (
+                            <span className="text-gray-400">Description (bold, numbering)</span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-2 py-2">
                       <button
