@@ -83,7 +83,7 @@ const DashboardPage = () => {
   )
 
   return (
-    <div className="mt-16 mx-20">
+    <div className="mt-16 mx-10">
       <button
         onClick={() => setNewEventModalOpen(true)}
         className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 font-medium"
