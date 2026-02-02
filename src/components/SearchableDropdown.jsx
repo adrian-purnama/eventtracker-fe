@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 const SearchableDropdown = ({
   options = [],
@@ -13,7 +14,9 @@ const SearchableDropdown = ({
 }) => {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [dropdownRect, setDropdownRect] = useState(null)
   const containerRef = useRef(null)
+  const dropdownRef = useRef(null)
 
   const getLabel = (item) => (item && item[labelKey] != null ? String(item[labelKey]) : '')
   const getValue = (item) => (item && item[valueKey] != null ? item[valueKey] : '')
@@ -26,10 +29,44 @@ const SearchableDropdown = ({
   const selectedOptions = options.filter((o) => selectedValues.includes(getValue(o)))
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false)
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      setDropdownRect({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      })
+    } else {
+      setDropdownRect(null)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const updatePosition = () => {
+      if (open && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setDropdownRect({
+          top: rect.bottom + window.scrollY,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+        })
       }
+    }
+    if (open) {
+      window.addEventListener('scroll', updatePosition, true)
+      window.addEventListener('resize', updatePosition)
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true)
+        window.removeEventListener('resize', updatePosition)
+      }
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const inContainer = containerRef.current?.contains(e.target)
+      const inDropdown = dropdownRef.current?.contains(e.target)
+      if (!inContainer && !inDropdown) setOpen(false)
     }
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
@@ -80,50 +117,62 @@ const SearchableDropdown = ({
         <span className="text-gray-400 shrink-0">{open ? '▲' : '▼'}</span>
       </button>
 
-      {open && (
-        <div className="absolute z-10 mt-1 w-full rounded border border-gray-200 bg-white shadow-lg">
-          <div className="p-2 border-b border-gray-100">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-          <ul className="max-h-48 overflow-y-auto py-1">
-            {filteredOptions.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-gray-500">No matches</li>
-            ) : (
-              filteredOptions.map((item) => {
-                const id = getValue(item)
-                const label = getLabel(item)
-                const isSelected = multiple ? selectedValues.includes(id) : value === id
-                return (
-                  <li key={id}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelect(item)}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                        isSelected ? 'bg-blue-50 text-blue-800' : 'text-gray-800'
-                      }`}
-                    >
-                      {multiple && (
-                        <span className="shrink-0 w-4 h-4 rounded border flex items-center justify-center">
-                          {isSelected ? '✓' : ''}
-                        </span>
-                      )}
-                      {label}
-                    </button>
-                  </li>
-                )
-              })
-            )}
-          </ul>
-        </div>
-      )}
+      {open &&
+        dropdownRect &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="absolute z-9999 rounded border border-gray-200 bg-white shadow-lg"
+            style={{
+              top: dropdownRect.top + 4,
+              left: dropdownRect.left,
+              width: dropdownRect.width,
+              minWidth: dropdownRect.width,
+            }}
+          >
+            <div className="p-2 border-b border-gray-100">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            <ul className="max-h-48 overflow-y-auto py-1">
+              {filteredOptions.length === 0 ? (
+                <li className="px-3 py-2 text-sm text-gray-500">No matches</li>
+              ) : (
+                filteredOptions.map((item) => {
+                  const id = getValue(item)
+                  const label = getLabel(item)
+                  const isSelected = multiple ? selectedValues.includes(id) : value === id
+                  return (
+                    <li key={id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(item)}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                          isSelected ? 'bg-blue-50 text-blue-800' : 'text-gray-800'
+                        }`}
+                      >
+                        {multiple && (
+                          <span className="shrink-0 w-4 h-4 rounded border flex items-center justify-center">
+                            {isSelected ? '✓' : ''}
+                          </span>
+                        )}
+                        {label}
+                      </button>
+                    </li>
+                  )
+                })
+              )}
+            </ul>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
