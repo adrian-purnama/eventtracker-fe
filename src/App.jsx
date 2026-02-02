@@ -5,11 +5,10 @@ import Navbar from './components/Navbar'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/auth/RegisterPage'
 import LoginPage from './pages/auth/LoginPage'
-import DashboardPage from './pages/Dashboardpage'
 import EventPage from './pages/event/EventPage'
 import UploadParticipantPage from './pages/event/UploadParticipantPage'
 import PrecentParticipantPage from './pages/event/PrecentParticipantPage'
-
+import DashboardPage from './pages/DashboardPage'
 
 function App() {
   return (
