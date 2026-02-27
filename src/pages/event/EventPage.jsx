@@ -333,6 +333,42 @@ const EventPage = () => {
     }
   }
 
+  const handleDownloadParticipants = async () => {
+    if (!id) return
+    setSubmitting(true)
+    try {
+      const response = await apiHelper.get(`/api/events/participants-export/${id}`, {
+        responseType: 'blob',
+      })
+      const contentType = response.headers['content-type'] || ''
+      if (response.status !== 200 || contentType.includes('application/json')) {
+        const text = await response.data.text()
+        let msg = 'Failed to download participants'
+        try {
+          const json = JSON.parse(text)
+          if (json.message) msg = json.message
+        } catch (_) {}
+        toast.error(msg)
+        return
+      }
+      const blob = response.data
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${(name || 'participants').replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 80)}_participants.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('Participants downloaded')
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to download participants'
+      toast.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="mt-16 mx-20">
@@ -449,6 +485,15 @@ const EventPage = () => {
             >
                 <UserCheck className="w-4 h-4 shrink-0" />
                 Coming Guest
+            </button>
+            <button
+                type="button"
+                onClick={handleDownloadParticipants}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md px-4 py-2 font-bold disabled:opacity-50"
+            >
+                <FileDown className="w-4 h-4 shrink-0" />
+                Download guests (Excel)
             </button>
             <button
                 type="button"
